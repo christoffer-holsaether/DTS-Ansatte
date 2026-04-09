@@ -5,103 +5,137 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Support Team - SpareBank 1 SMN</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+        body { font-family: "SpareBank 1 Sans", Arial, sans-serif; background-color: white; margin: 0; padding: 20px; }
         .employee-grid { 
             display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
-            gap: 20px; 
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
+            gap: 30px; 
             max-width: 1200px; 
             margin: 0 auto; 
         }
         .employee-card { 
-            background: white; 
-            border-radius: 8px; 
-            padding: 20px; 
             text-align: center; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+            padding: 10px;
+        }
+        .image-container {
+            width: 160px;
+            height: 160px;
+            margin: 0 auto 15px;
+            overflow: hidden;
+            border-radius: 50%;
         }
         .employee-card img { 
-            width: 120px; 
-            height: 120px; 
-            border-radius: 50%; 
-            object-fit: cover; 
-            margin-bottom: 15px;
-            background-color: #eee;
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover;
         }
-        .employee-card h3 { margin: 10px 0 5px 0; color: #003057; font-size: 1.2rem; }
-        .employee-card p { margin: 5px 0; color: #555; font-size: 0.9rem; }
-        .employee-card a { 
+        .employee-card h3 { 
+            margin: 10px 0 5px 0; 
+            color: #003057; 
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        .employee-card .role {
+            display: block;
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 0.9rem;
+        }
+        .contact-link { 
             display: block; 
             color: #0072c1; 
             text-decoration: none; 
             margin-top: 5px; 
             font-size: 0.9rem;
         }
-        .employee-card a:hover { text-decoration: underline; }
-        #loading { text-align: center; padding: 50px; font-size: 1.2rem; color: #666; }
+        .contact-link:hover { text-decoration: underline; }
+        #loading { text-align: center; padding: 50px; font-size: 1.1rem; color: #666; }
+        #debug-info { font-size: 10px; color: #ccc; margin-top: 50px; border-top: 1px solid #eee; padding-top: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="loading">Henter support-medarbeidere...</div>
+    <div id="loading">Henter support-medarbeidere fra SpareBank 1...</div>
     <div class="employee-grid" id="employee-container"></div>
+    <div id="debug-info"></div>
 
     <script>
         async function fetchEmployees() {
             const targetUrl = 'https://www.sparebank1.no/nb/smn/bedrift/konsulenttjenester/digitale-tjenester.html';
-            // We use AllOrigins to bypass CORS
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}&ts=${Date.now()}`;
+            
+            const container = document.getElementById('employee-container');
+            const loading = document.getElementById('loading');
+            const debug = document.getElementById('debug-info');
 
             try {
                 const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error('Nettverksfeil mot proxy');
+                
                 const data = await response.json();
                 const htmlString = data.contents;
-
-                // Parse the HTML string into a DOM object
+                
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(htmlString, 'text/html');
 
-                // Find the Support section specifically
-                // Based on SpareBank1's structure, we look for the element with id "support" 
-                // and then find the employee components within it
-                const supportSection = doc.getElementById('support') || doc.body;
+                // Finn "Support" overskriften først for å isolere riktig seksjon
+                const headers = Array.from(doc.querySelectorAll('h2, h3, span'));
+                const supportHeader = headers.find(el => el.textContent.includes('Support'));
                 
-                // SpareBank1 uses specific classes for their person-cards. 
-                // We target the typical selectors used in their CMS (AEM).
-                const personElements = supportSection.querySelectorAll('.a-person-card, [class*="person-card"]');
+                let personElements = [];
                 
-                const container = document.getElementById('employee-container');
-                const loading = document.getElementById('loading');
-                
+                if (supportHeader) {
+                    // Finn nærmeste container som inneholder person-kort etter "Support"-overskriften
+                    const section = supportHeader.closest('section') || supportHeader.parentElement.parentElement;
+                    personElements = section.querySelectorAll('.a-person-card, .m-person-card, [class*="person-card"]');
+                }
+
+                // Hvis vi ikke fant noe i support-seksjonen, prøv å finne alle personkort på siden
                 if (personElements.length === 0) {
-                    loading.innerText = "Ingen ansatte funnet. Siden kan ha endret struktur.";
+                    personElements = doc.querySelectorAll('.a-person-card, .m-person-card');
+                }
+
+                if (personElements.length === 0) {
+                    loading.innerText = "Klarte ikke å lese ansatt-data. Siden kan være midlertidig utilgjengelig eller ha endret design.";
+                    debug.innerText = "Debug: Fant ingen elementer med klasse .a-person-card";
                     return;
                 }
 
                 loading.style.display = 'none';
 
                 personElements.forEach(el => {
-                    const name = el.querySelector('h3, .a-person-card__name')?.innerText.trim() || 'Navn ikke tilgjengelig';
-                    const img = el.querySelector('img')?.src.replace(window.location.origin, 'https://www.sparebank1.no') || '';
-                    const phone = el.querySelector('a[href^="tel:"]')?.innerText.trim() || '';
-                    const phoneHref = el.querySelector('a[href^="tel:"]')?.href || '';
-                    const email = el.querySelector('a[href^="mailto:"]')?.innerText.trim() || '';
-                    const emailHref = el.querySelector('a[href^="mailto:"]')?.href || '';
+                    // Hent data basert på SpareBank 1 sin faktiske HTML-struktur
+                    const name = el.querySelector('[class*="__name"], h3')?.innerText.trim() || '';
+                    const role = el.querySelector('[class*="__title"], .role')?.innerText.trim() || '';
+                    
+                    let imgSrc = el.querySelector('img')?.getAttribute('src') || '';
+                    if (imgSrc && !imgSrc.startsWith('http')) {
+                        imgSrc = 'https://www.sparebank1.no' + (imgSrc.startsWith('/') ? '' : '/') + imgSrc;
+                    }
 
-                    const card = document.createElement('div');
-                    card.className = 'employee-card';
-                    card.innerHTML = `
-                        <img src="${img}" alt="${name}" onerror="this.src='https://via.placeholder.com/150?text=Bilde'">
-                        <h3>${name}</h3>
-                        ${phone ? `<a href="${phoneHref}">${phone}</a>` : ''}
-                        ${email ? `<a href="${emailHref}">${email}</a>` : ''}
-                    `;
-                    container.appendChild(card);
+                    const phoneEl = el.querySelector('a[href^="tel:"]');
+                    const emailEl = el.querySelector('a[href^="mailto:"]');
+
+                    if (name) { // Lag bare kort hvis vi fant et navn
+                        const card = document.createElement('div');
+                        card.className = 'employee-card';
+                        card.innerHTML = `
+                            <div class="image-container">
+                                <img src="${imgSrc}" alt="${name}" onerror="this.src='https://www.sparebank1.no/etc.clientlibs/s1-platform/clientlibs/clientlib-site/resources/images/avatar.svg'">
+                            </div>
+                            <h3>${name}</h3>
+                            ${role ? `<span class="role">${role}</span>` : ''}
+                            ${phoneEl ? `<a class="contact-link" href="${phoneEl.href}">${phoneEl.innerText}</a>` : ''}
+                            ${emailEl ? `<a class="contact-link" href="${emailEl.href}">${emailEl.innerText.toLowerCase()}</a>` : ''}
+                        `;
+                        container.appendChild(card);
+                    }
                 });
 
             } catch (error) {
-                console.error('Error fetching data:', error);
-                document.getElementById('loading').innerText = "Feil ved henting av data.";
+                console.error('Error:', error);
+                loading.innerText = "Det oppstod en feil ved tilkobling til siden.";
+                debug.innerText = "Debug info: " + error.message;
             }
         }
 
