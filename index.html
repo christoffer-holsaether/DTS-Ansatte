@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Team - SpareBank 1 SMN</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+        .employee-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
+            gap: 20px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        .employee-card { 
+            background: white; 
+            border-radius: 8px; 
+            padding: 20px; 
+            text-align: center; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+        }
+        .employee-card img { 
+            width: 120px; 
+            height: 120px; 
+            border-radius: 50%; 
+            object-fit: cover; 
+            margin-bottom: 15px;
+            background-color: #eee;
+        }
+        .employee-card h3 { margin: 10px 0 5px 0; color: #003057; font-size: 1.2rem; }
+        .employee-card p { margin: 5px 0; color: #555; font-size: 0.9rem; }
+        .employee-card a { 
+            display: block; 
+            color: #0072c1; 
+            text-decoration: none; 
+            margin-top: 5px; 
+            font-size: 0.9rem;
+        }
+        .employee-card a:hover { text-decoration: underline; }
+        #loading { text-align: center; padding: 50px; font-size: 1.2rem; color: #666; }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Henter support-medarbeidere...</div>
+    <div class="employee-grid" id="employee-container"></div>
+
+    <script>
+        async function fetchEmployees() {
+            const targetUrl = 'https://www.sparebank1.no/nb/smn/bedrift/konsulenttjenester/digitale-tjenester.html';
+            // We use AllOrigins to bypass CORS
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+
+            try {
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+                const htmlString = data.contents;
+
+                // Parse the HTML string into a DOM object
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlString, 'text/html');
+
+                // Find the Support section specifically
+                // Based on SpareBank1's structure, we look for the element with id "support" 
+                // and then find the employee components within it
+                const supportSection = doc.getElementById('support') || doc.body;
+                
+                // SpareBank1 uses specific classes for their person-cards. 
+                // We target the typical selectors used in their CMS (AEM).
+                const personElements = supportSection.querySelectorAll('.a-person-card, [class*="person-card"]');
+                
+                const container = document.getElementById('employee-container');
+                const loading = document.getElementById('loading');
+                
+                if (personElements.length === 0) {
+                    loading.innerText = "Ingen ansatte funnet. Siden kan ha endret struktur.";
+                    return;
+                }
+
+                loading.style.display = 'none';
+
+                personElements.forEach(el => {
+                    const name = el.querySelector('h3, .a-person-card__name')?.innerText.trim() || 'Navn ikke tilgjengelig';
+                    const img = el.querySelector('img')?.src.replace(window.location.origin, 'https://www.sparebank1.no') || '';
+                    const phone = el.querySelector('a[href^="tel:"]')?.innerText.trim() || '';
+                    const phoneHref = el.querySelector('a[href^="tel:"]')?.href || '';
+                    const email = el.querySelector('a[href^="mailto:"]')?.innerText.trim() || '';
+                    const emailHref = el.querySelector('a[href^="mailto:"]')?.href || '';
+
+                    const card = document.createElement('div');
+                    card.className = 'employee-card';
+                    card.innerHTML = `
+                        <img src="${img}" alt="${name}" onerror="this.src='https://via.placeholder.com/150?text=Bilde'">
+                        <h3>${name}</h3>
+                        ${phone ? `<a href="${phoneHref}">${phone}</a>` : ''}
+                        ${email ? `<a href="${emailHref}">${email}</a>` : ''}
+                    `;
+                    container.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('loading').innerText = "Feil ved henting av data.";
+            }
+        }
+
+        fetchEmployees();
+    </script>
+</body>
+</html>
