@@ -5,8 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DTS Ansatte</title>
     <style>
+        @font-face {
+            font-family: 'Sparebank 1 Sans';
+            src: url('/resources/Museo Sans 300.otf') format('otf');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        @font-face {
+            font-family: 'Sparebank 1 Sans';
+            src: url('/resources/Museo Sans 500.otf') format('otf');
+            font-weight: bold;
+            font-style: normal;
+        }
+
         :root { --sb1-blue: #003057; --sb1-light-blue: #0072c1; }
-        body { font-family: Arial, sans-serif; padding: 40px 20px; color: var(--sb1-blue); }
+        body { font-family: 'Sparebank 1 Sans', Arial, sans-serif; padding: 40px 20px; color: var(--sb1-blue); }
         .employee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 40px 20px; max-width: 1100px; margin: 0 auto; }
         .employee-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
         .image-wrapper { width: 180px; height: 180px; border-radius: 50%; overflow: hidden; margin-bottom: 15px; background: #eee; }
