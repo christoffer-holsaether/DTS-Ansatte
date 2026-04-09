@@ -29,6 +29,39 @@
         font-weight: 300;
         padding: 40px 20px; 
         color: var(--sb1-blue); 
+        background-color: white;
+    }
+
+    /* GRID-OPPSETTET SOM MANGLA */
+    .employee-grid { 
+        display: grid; 
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
+        gap: 40px 20px; 
+        max-width: 1100px; 
+        margin: 0 auto; 
+    }
+
+    .employee-card { 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        text-align: center; 
+    }
+
+    /* BILDESIRKLENE SOM MANGLA */
+    .image-wrapper { 
+        width: 180px; 
+        height: 180px; 
+        border-radius: 50%; 
+        overflow: hidden; 
+        margin-bottom: 15px; 
+        background: #f4f4f4; 
+    }
+
+    .image-wrapper img { 
+        width: 100%; 
+        height: 100%; 
+        object-fit: cover; 
     }
 
     .name { 
@@ -55,6 +88,7 @@
         color: var(--sb1-light-blue); 
         text-decoration: underline; 
     }
+
     #error-log { 
         color: #cc0000; 
         background: #fff5f5; 
@@ -67,7 +101,7 @@
         white-space: pre-wrap; 
         font-family: monospace;
     }
-    </style>
+</style>
 </head>
 <body>
 
@@ -80,11 +114,10 @@
             const container = document.getElementById('staff-list');
 
             try {
-                // Legger til et tilfeldig tall i URL-en for å unngå at nettleseren lagrer en gammel feil (cache)
                 const response = await fetch('employees.json?nocache=' + Math.random());
                 
                 if (!response.ok) {
-                    throw new Error(`Fant ikke employees.json (Status: ${response.status}). Sjekk at filnavnet er riktig på GitHub.`);
+                    throw new Error(`Fant ikke employees.json (Status: ${response.status}).`);
                 }
                 
                 const data = await response.text();
@@ -93,13 +126,28 @@
                 try {
                     employees = JSON.parse(data);
                 } catch (jsonErr) {
-                    throw new Error(`Feil i formatet i employees.json: \n${jsonErr.message}\n\nTips: Sjekk at du ikke har glemt et komma eller et hermetegn.`);
+                    throw new Error(`Feil i JSON-formatet.`);
                 }
 
-                container.innerHTML = employees.map(emp => `
+                // --- SORTERINGSLOGIKK ---
+                const leaderRole = "Leder digitale tjenester support";
+                
+                // Finn lederen
+                const leader = employees.find(emp => emp.role === leaderRole);
+                // Finn alle andre
+                const others = employees.filter(emp => emp.role !== leaderRole);
+                
+                // Sorter de andre alfabetisk på fornavn
+                others.sort((a, b) => a.name.localeCompare(b.name, 'nb'));
+                
+                // Sett sammen listen igjen (Leder først)
+                const sortedEmployees = leader ? [leader, ...others] : others;
+
+                // Tegn ut den SORTERTE listen
+                container.innerHTML = sortedEmployees.map(emp => `
                     <div class="employee-card">
                         <div class="image-wrapper">
-                            <img src="${emp.img}" alt="${emp.name}" onerror="this.src='https://www.sparebank1.no/content/dam/SB1/illustrasjoner/staende/dame-pc-stressa.png'">
+                            <img src="${emp.img}" alt="${emp.name}" onerror="this.src='https://www.sparebank1.no/etc.clientlibs/s1-platform/clientlibs/clientlib-site/resources/images/avatar.svg'">
                         </div>
                         <div class="name">${emp.name}</div>
                         <div class="role">${emp.role}</div>
@@ -111,7 +159,6 @@
             } catch (error) {
                 errorLog.style.display = 'block';
                 errorLog.innerText = "FEILMELDING:\n" + error.message;
-                console.error(error);
             }
         }
 
